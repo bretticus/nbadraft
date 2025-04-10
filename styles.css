@@ -1,0 +1,73 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f0f0f0;
+}
+
+h1 {
+    text-align: center;
+    color: #1d428a; /* NBA blue */
+}
+
+#team-list, #draft-order {
+    margin: 20px 0;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    background-color: #c8102e; /* NBA red */
+    margin: 10px;
+}
+
+#button-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.team {
+    padding: 5px;
+    border-bottom: 1px solid #ccc;
+    animation: fadeOutIn 1s ease-in-out;
+}
+
+.draft-pick {
+    font-weight: bold;
+}
+
+@keyframes fadeOutIn {
+    0%, 49% { opacity: 0; }
+    50%, 100% { opacity: 1; }
+}
+
+.ping-pong-ball {
+    display: none;
+}
+
+.rank-change {
+    display: inline-block;
+    margin-left: 10px;
+}
+
+.rank-change.up {
+    color: green;
+}
+
+.rank-change.down {
+    color: red;
+}
+
+.rank-change.same {
+    display: none;
+}
+
+#draft-order {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+}
