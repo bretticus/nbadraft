@@ -66,8 +66,111 @@ button {
     display: none;
 }
 
+.up {
+    color: #008000;
+    font-weight: bold;
+}
+
+.down {
+    color: #ff0000;
+    font-weight: bold;
+}
+
 #draft-order {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
+}
+
+.separator {
+    text-align: center;
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #f0f0f0;
+}
+
+.separator hr {
+    border: none;
+    height: 1px;
+    background-color: #333;
+    margin: 10px 0;
+}
+
+.separator span {
+    font-weight: bold;
+    color: #666;
+}
+
+.draft-process-container {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.draft-process-container h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+}
+
+.lottery-info {
+    margin-bottom: 20px;
+}
+
+.lottery-info p {
+    margin-bottom: 10px;
+}
+
+.lottery-info ul {
+    list-style-position: inside;
+    padding: 0;
+    margin: 0;
+}
+
+.lottery-info li {
+    margin: 5px 0;
+    color: #666;
+}
+
+.draft-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.draft-step {
+    display: flex;
+    align-items: flex-start;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.step-number {
+    width: 60px;
+    font-weight: bold;
+    color: #007bff;
+    text-align: center;
+    padding: 5px;
+    border-radius: 4px;
+    background-color: #f0f6ff;
+    margin-right: 15px;
+}
+
+.step-details {
+    flex: 1;
+}
+
+.balls-drawn, .team-selected {
+    margin: 5px 0;
+}
+
+.balls-drawn strong {
+    color: #28a745;
+}
+
+.team-selected strong {
+    color: #0056b3;
 }
