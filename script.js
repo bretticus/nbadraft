@@ -137,4 +137,40 @@ function startMockDraft() {
 
 document.getElementById('start-draft').addEventListener('click', startMockDraft);
 
+function saveTeamRecords() {
+    localStorage.setItem('teamRecords', JSON.stringify(teams));
+}
+
+function loadTeamRecords() {
+    const storedRecords = localStorage.getItem('teamRecords');
+    if (storedRecords) {
+        const parsedRecords = JSON.parse(storedRecords);
+        if (Array.isArray(parsedRecords) && parsedRecords.length === teams.length) {
+            parsedRecords.forEach((record, index) => {
+                teams[index].record = record.record;
+            });
+        }
+    }
+}
+
+function enterManageMode() {
+    const teamList = document.getElementById('team-list');
+    teamList.innerHTML = '';
+    teams.forEach((team, index) => {
+        const div = document.createElement('div');
+        div.className = 'team';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = team.record;
+        input.onchange = (e) => {
+            teams[index].record = e.target.value;
+            saveTeamRecords();
+        };
+        div.appendChild(document.createTextNode(team.name + ': '));
+        div.appendChild(input);
+        teamList.appendChild(div);
+    });
+}
+
+loadTeamRecords();
 displayTeams(teams);
