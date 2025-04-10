@@ -40,29 +40,55 @@ teams.sort((a, b) => {
 
 function displayTeams(draftOrder) {
     const teamList = document.getElementById('team-list');
-    teamList.innerHTML = '';
-    draftOrder.forEach((team, index) => {
-        const div = document.createElement('div');
-        div.className = 'team';
-        const originalRank = teams.findIndex(t => t.name === team.name) + 1;
-        const rankChange = originalRank - (index + 1);
-        let changeClass = 'same';
-        let arrow = '';
-        if (rankChange > 0) {
-            changeClass = 'up';
-            arrow = '↑';
-        } else if (rankChange < 0) {
-            changeClass = 'down';
-            arrow = '↓';
+    const originalOrder = JSON.parse(localStorage.getItem('draftOrder')) || teams;
+    
+    const listItems = draftOrder.map((team, index) => {
+        const originalIndex = originalOrder.findIndex(t => t.name === team.name);
+        let movement = '';
+        
+        // Only show movement for lottery teams (top 14 picks)
+        if (index < 14) {
+            const rankChange = originalIndex - index;
+            if (rankChange > 0) {
+                movement = `<span class="up">↑</span> ${rankChange}`;
+            } else if (rankChange < 0) {
+                movement = `<span class="down">↓</span> ${Math.abs(rankChange)}`;
+            }
         }
-        div.innerHTML = `${index + 1}. ${team.name} (${team.record}) <span class="rank-change ${changeClass}">${arrow} ${Math.abs(rankChange)}</span>`;
-        teamList.appendChild(div);
+        
+        // Add separator after pick 14
+        if (index === 14) {
+            return `<div class="separator">
+                <hr>
+                <span>Non-Lottery Teams</span>
+                <hr>
+            </div>`;
+        }
+        
+        return `<div class="team">
+            ${index + 1}. ${team.name} (${team.record}) ${movement}
+        </div>`;
     });
+    
+    teamList.innerHTML = listItems.join('');
 }
 
 function resetDraftOrder() {
-    displayTeams(teams); // Display initial team order
-    localStorage.removeItem('draftOrder'); // Clear stored draft order
+    // Clear stored draft order
+    localStorage.removeItem('draftOrder');
+    
+    // Clear draft process display
+    const draftProcessElement = document.getElementById('draft-process');
+    draftProcessElement.innerHTML = '';
+    
+    // Display teams in original order
+    const teamList = document.getElementById('team-list');
+    const listItems = teams.map((team, index) => {
+        return `<div class="team">
+            ${index + 1}. ${team.name} (${team.record})
+        </div>`;
+    });
+    teamList.innerHTML = listItems.join('');
 }
 
 document.getElementById('reset-draft').addEventListener('click', resetDraftOrder);
@@ -138,21 +164,35 @@ function displayDraftProcess(results) {
         const balls = result.combination.split(',').map(n => parseInt(n));
         return `
             <div class="draft-step">
-                <strong>Pick #${index + 1}:</strong> ${result.team.name}<br>
-                <strong>Ping Pong Balls Drawn:</strong> ${balls.join(', ')}<br>
-                <strong>Team:</strong> ${result.team.name}
+                <div class="step-number">Pick ${index + 1}</div>
+                <div class="step-details">
+                    <div class="balls-drawn">
+                        <strong>Ping Pong Balls Drawn:</strong> ${balls.join(', ')}
+                    </div>
+                    <div class="team-selected">
+                        <strong>Team:</strong> ${result.team.name}
+                    </div>
+                </div>
             </div>
         `;
     }).join('');
     
     draftProcessElement.innerHTML = `
-        <h3>Draft Order Selection Process:</h3>
-        <p><strong>Lottery System:</strong> 1,000 combinations assigned to teams based on their regular-season record.<br>
-        Top 3 teams: 140 combinations each<br>
-        Team 4: 125 combinations<br>
-        Team 5: 105 combinations<br>
-        Remaining teams: Decreasing combinations based on record</p>
-        ${process}
+        <div class="draft-process-container">
+            <h3>Draft Order Selection Process:</h3>
+            <div class="lottery-info">
+                <p><strong>Lottery System:</strong> 1,000 combinations assigned to teams based on their regular-season record.</p>
+                <ul>
+                    <li>Top 3 teams: 140 combinations each</li>
+                    <li>Team 4: 125 combinations</li>
+                    <li>Team 5: 105 combinations</li>
+                    <li>Remaining teams: Decreasing combinations based on record</li>
+                </ul>
+            </div>
+            <div class="draft-steps">
+                ${process}
+            </div>
+        </div>
     `;
 }
 
@@ -161,9 +201,14 @@ function startMockDraft() {
     const startButton = document.getElementById('start-draft');
     const resetButton = document.getElementById('reset-draft');
 
-    // Reset to original order
-    const originalOrder = [...teams];
-    displayTeams(originalOrder);
+    // Reset draft order and display teams in original order
+    localStorage.removeItem('draftOrder');
+    const listItems = teams.map((team, index) => {
+        return `<div class="team">
+            ${index + 1}. ${team.name} (${team.record})
+        </div>`;
+    });
+    teamList.innerHTML = listItems.join('');
 
     // Disable buttons during draft
     startButton.disabled = true;
@@ -183,9 +228,10 @@ function startMockDraft() {
         // Get the lottery teams in order
         const lotteryTeams = lotteryResults.map(result => result.team);
         
-        // Get the remaining teams in inverse order of their records
-        const remainingTeams = teams.filter(t => !lotteryTeams.includes(t));
-        remainingTeams.sort((a, b) => parseInt(a.record.split('-')[0]) - parseInt(b.record.split('-')[0]));
+        // Get all remaining teams (excluding lottery teams) in inverse order of their records
+        const remainingTeams = teams
+            .filter(t => !lotteryTeams.includes(t))
+            .sort((a, b) => parseInt(a.record.split('-')[0]) - parseInt(b.record.split('-')[0]));
         
         // Combine lottery teams and remaining teams
         const draftOrder = lotteryTeams.concat(remainingTeams);
