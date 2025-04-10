@@ -67,50 +67,83 @@ function resetDraftOrder() {
 
 document.getElementById('reset-draft').addEventListener('click', resetDraftOrder);
 
-function getRandomInt(max) {
-    const array = new Uint32Array(1);
-    window.crypto.getRandomValues(array);
-    return array[0] % max;
+function drawPingPongBalls() {
+    // Simulate drawing 4 balls from 14, without regard to order
+    const balls = Array(4).fill().map(() => Math.floor(Math.random() * 14) + 1);
+    return balls.sort((a, b) => a - b); // Sort to match NBA's process
 }
 
-function weightedRandom(weights) {
-    const totalWeight = weights.reduce((acc, weight) => acc + weight, 0);
-    const random = Math.random() * totalWeight;
-    let cumulativeWeight = 0;
-    for (let i = 0; i < weights.length; i++) {
-        cumulativeWeight += weights[i];
-        if (random < cumulativeWeight) {
-            return { index: i, random: random, cumulativeWeights: cumulativeWeight };
-        }
+function createLotteryCombinations() {
+    // Generate all possible combinations of 4 balls drawn from 14
+    const combinations = new Set();
+    while (combinations.size < 1000) {
+        combinations.add(drawPingPongBalls().join(','));
     }
-    return { index: weights.length - 1, random: random, cumulativeWeights: cumulativeWeight };
+    return Array.from(combinations);
 }
 
-function displayDraftProcess(drawnCombinations, allCombinations) {
-    const draftProcessElement = document.getElementById('draft-process');
-    const process = [];
-    
-    // Create a copy of all combinations to track which ones are drawn
-    const remainingCombinations = [...allCombinations];
-    
-    drawnCombinations.forEach((team, pickNumber) => {
-        // Find the first occurrence of this team in the remaining combinations
-        const combinationIndex = remainingCombinations.findIndex(c => c === team);
-        const combination = combinationIndex + 1; // Convert to 1-based index
-        
-        // Remove this combination from the remaining pool
-        remainingCombinations.splice(combinationIndex, 1);
-        
-        // Simulate drawing ping pong balls (1-14)
-        const balls = Array(4).fill().map(() => Math.floor(Math.random() * 14) + 1);
-        
-        process.push(`
-            Pick ${pickNumber + 1}: ${team.name}<br>
-            <strong>Ping Pong Balls Drawn:</strong> ${balls.join(', ')}<br>
-            <strong>Combination #${combination}</strong> selected<br>
-            ${team.name} had ${allCombinations.filter(c => c === team).length} combinations available
-        `);
+function assignCombinations(teams, combinations) {
+    const odds = [140, 140, 140, 125, 105, 90, 75, 60, 45, 30, 20, 15, 10, 5];
+    let assignedCombinations = 0;
+    const teamCombinations = teams.map((team, index) => {
+        const teamWeight = odds[index];
+        const teamCombos = combinations.slice(assignedCombinations, assignedCombinations + teamWeight);
+        assignedCombinations += teamWeight;
+        return { team, combinations: teamCombos };
     });
+    return teamCombinations;
+}
+
+function drawLottery(teamCombinations) {
+    const drawnCombinations = new Set();
+    const maxAttempts = 1000;
+    let attempts = 0;
+    const results = [];
+    const selectedTeams = new Set();
+    
+    // Draw combinations for all 4 picks
+    while (results.length < 4 && attempts < maxAttempts) {
+        const combination = drawPingPongBalls().join(',');
+        
+        // Check if this is the unassigned combination (1001)
+        if (combination === '1,2,3,4') { // This is just an example - in reality it would be a different combination
+            continue;
+        }
+        
+        const selectedTeam = teamCombinations.find(tc => tc.combinations.includes(combination));
+        
+        if (selectedTeam && !drawnCombinations.has(combination) && !selectedTeams.has(selectedTeam.team)) {
+            drawnCombinations.add(combination);
+            selectedTeams.add(selectedTeam.team);
+            results.push({ team: selectedTeam.team, combination });
+        }
+        attempts++;
+    }
+    
+    if (results.length < 4) {
+        console.warn('Could not complete drawing after maximum attempts. Using remaining teams.');
+        return teamCombinations.slice(0, 4).map(tc => ({ 
+            team: tc.team, 
+            combination: tc.combinations[0] 
+        }));
+    }
+    
+    return results;
+}
+
+function displayDraftProcess(results) {
+    const draftProcessElement = document.getElementById('draft-process');
+    
+    const process = results.map((result, index) => {
+        const balls = result.combination.split(',').map(n => parseInt(n));
+        return `
+            <div class="draft-step">
+                <strong>Pick #${index + 1}:</strong> ${result.team.name}<br>
+                <strong>Ping Pong Balls Drawn:</strong> ${balls.join(', ')}<br>
+                <strong>Team:</strong> ${result.team.name}
+            </div>
+        `;
+    }).join('');
     
     draftProcessElement.innerHTML = `
         <h3>Draft Order Selection Process:</h3>
@@ -119,51 +152,8 @@ function displayDraftProcess(drawnCombinations, allCombinations) {
         Team 4: 125 combinations<br>
         Team 5: 105 combinations<br>
         Remaining teams: Decreasing combinations based on record</p>
-        ${process.map((step, index) => `<div class="draft-step">${step}</div>`).join('')}
+        ${process}
     `;
-}
-
-function assignCombinations(teams) {
-    const odds = [140, 140, 140, 125, 105, 90, 75, 60, 45, 30, 20, 15, 10, 5];
-    const totalCombinations = 1000;
-    const combinations = Array(totalCombinations).fill(null);
-    let assignedCombinations = 0;
-    const teamCombinations = teams.map((team, index) => {
-        const teamWeight = odds[index];
-        const teamCombos = Array(teamWeight).fill(team);
-        assignedCombinations += teamWeight;
-        return { team, combinations: teamCombos };
-    });
-    return teamCombinations;
-}
-
-function drawCombination(teamCombinations) {
-    const drawnCombinations = new Set();
-    const maxAttempts = 1000;
-    let attempts = 0;
-    
-    // Flatten all combinations into a single array
-    const allCombinations = teamCombinations.flatMap(tc => tc.combinations);
-    
-    while (drawnCombinations.size < 4 && attempts < maxAttempts) {
-        const randomIndex = Math.floor(Math.random() * allCombinations.length);
-        const selectedTeam = allCombinations[randomIndex];
-        
-        if (!drawnCombinations.has(selectedTeam)) {
-            drawnCombinations.add(selectedTeam);
-        }
-        attempts++;
-    }
-    
-    if (drawnCombinations.size < 4) {
-        console.warn('Could not complete drawing after maximum attempts. Using remaining teams.');
-        return teamCombinations.slice(0, 4).map(tc => tc.team);
-    }
-    
-    // Call displayDraftProcess with the drawn combinations and all combinations
-    displayDraftProcess(Array.from(drawnCombinations), allCombinations);
-    
-    return Array.from(drawnCombinations);
 }
 
 function startMockDraft() {
@@ -181,16 +171,25 @@ function startMockDraft() {
 
     teamList.style.opacity = 0; // Start fade out
     setTimeout(() => {
-        const teamCombinations = assignCombinations(teams);
-        const topPicks = drawCombination(teamCombinations);
-
-        // Assign picks 5-14 based on inverse order
-        const remainingLotteryTeams = teams.filter(t => !topPicks.includes(t));
-        remainingLotteryTeams.sort((a, b) => parseInt(a.record.split('-')[0]) - parseInt(b.record.split('-')[0]));
-
-        // Combine top picks and remaining lottery teams
-        const draftOrder = topPicks.concat(remainingLotteryTeams);
-
+        // Create all possible combinations
+        const combinations = createLotteryCombinations();
+        // Assign combinations to teams
+        const teamCombinations = assignCombinations(teams, combinations);
+        // Draw the lottery
+        const lotteryResults = drawLottery(teamCombinations);
+        // Display the process
+        displayDraftProcess(lotteryResults);
+        
+        // Get the lottery teams in order
+        const lotteryTeams = lotteryResults.map(result => result.team);
+        
+        // Get the remaining teams in inverse order of their records
+        const remainingTeams = teams.filter(t => !lotteryTeams.includes(t));
+        remainingTeams.sort((a, b) => parseInt(a.record.split('-')[0]) - parseInt(b.record.split('-')[0]));
+        
+        // Combine lottery teams and remaining teams
+        const draftOrder = lotteryTeams.concat(remainingTeams);
+        
         displayTeams(draftOrder); // Display the draft order
         localStorage.setItem('draftOrder', JSON.stringify(draftOrder));
 
@@ -199,7 +198,7 @@ function startMockDraft() {
         // Re-enable buttons after draft
         startButton.disabled = false;
         resetButton.disabled = false;
-    }, 500); // Shorter duration for fade out
+    }, 500);
 }
 
 document.getElementById('start-draft').addEventListener('click', startMockDraft);
