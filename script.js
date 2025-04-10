@@ -80,17 +80,97 @@ function weightedRandom(weights) {
     for (let i = 0; i < weights.length; i++) {
         cumulativeWeight += weights[i];
         if (random < cumulativeWeight) {
-            return i;
+            return { index: i, random: random, cumulativeWeights: cumulativeWeight };
         }
     }
-    return weights.length - 1;
+    return { index: weights.length - 1, random: random, cumulativeWeights: cumulativeWeight };
+}
+
+function displayDraftProcess(drawnCombinations, allCombinations) {
+    const draftProcessElement = document.getElementById('draft-process');
+    const process = [];
+    
+    // Create a copy of all combinations to track which ones are drawn
+    const remainingCombinations = [...allCombinations];
+    
+    drawnCombinations.forEach((team, pickNumber) => {
+        // Find the first occurrence of this team in the remaining combinations
+        const combinationIndex = remainingCombinations.findIndex(c => c === team);
+        const combination = combinationIndex + 1; // Convert to 1-based index
+        
+        // Remove this combination from the remaining pool
+        remainingCombinations.splice(combinationIndex, 1);
+        
+        // Simulate drawing ping pong balls (1-14)
+        const balls = Array(4).fill().map(() => Math.floor(Math.random() * 14) + 1);
+        
+        process.push(`
+            Pick ${pickNumber + 1}: ${team.name}<br>
+            <strong>Ping Pong Balls Drawn:</strong> ${balls.join(', ')}<br>
+            <strong>Combination #${combination}</strong> selected<br>
+            ${team.name} had ${allCombinations.filter(c => c === team).length} combinations available
+        `);
+    });
+    
+    draftProcessElement.innerHTML = `
+        <h3>Draft Order Selection Process:</h3>
+        <p><strong>Lottery System:</strong> 1,000 combinations assigned to teams based on their regular-season record.<br>
+        Top 3 teams: 140 combinations each<br>
+        Team 4: 125 combinations<br>
+        Team 5: 105 combinations<br>
+        Remaining teams: Decreasing combinations based on record</p>
+        ${process.map((step, index) => `<div class="draft-step">${step}</div>`).join('')}
+    `;
+}
+
+function assignCombinations(teams) {
+    const odds = [140, 140, 140, 125, 105, 90, 75, 60, 45, 30, 20, 15, 10, 5];
+    const totalCombinations = 1000;
+    const combinations = Array(totalCombinations).fill(null);
+    let assignedCombinations = 0;
+    const teamCombinations = teams.map((team, index) => {
+        const teamWeight = odds[index];
+        const teamCombos = Array(teamWeight).fill(team);
+        assignedCombinations += teamWeight;
+        return { team, combinations: teamCombos };
+    });
+    return teamCombinations;
+}
+
+function drawCombination(teamCombinations) {
+    const drawnCombinations = new Set();
+    const maxAttempts = 1000;
+    let attempts = 0;
+    
+    // Flatten all combinations into a single array
+    const allCombinations = teamCombinations.flatMap(tc => tc.combinations);
+    
+    while (drawnCombinations.size < 4 && attempts < maxAttempts) {
+        const randomIndex = Math.floor(Math.random() * allCombinations.length);
+        const selectedTeam = allCombinations[randomIndex];
+        
+        if (!drawnCombinations.has(selectedTeam)) {
+            drawnCombinations.add(selectedTeam);
+        }
+        attempts++;
+    }
+    
+    if (drawnCombinations.size < 4) {
+        console.warn('Could not complete drawing after maximum attempts. Using remaining teams.');
+        return teamCombinations.slice(0, 4).map(tc => tc.team);
+    }
+    
+    // Call displayDraftProcess with the drawn combinations and all combinations
+    displayDraftProcess(Array.from(drawnCombinations), allCombinations);
+    
+    return Array.from(drawnCombinations);
 }
 
 function startMockDraft() {
     const teamList = document.getElementById('team-list');
     const startButton = document.getElementById('start-draft');
     const resetButton = document.getElementById('reset-draft');
-    
+
     // Reset to original order
     const originalOrder = [...teams];
     displayTeams(originalOrder);
@@ -101,28 +181,15 @@ function startMockDraft() {
 
     teamList.style.opacity = 0; // Start fade out
     setTimeout(() => {
-        // Separate lottery teams (14 worst records)
-        const lotteryTeams = teams.slice(0, 14);
-        const otherTeams = teams.slice(14);
-
-        // Assign weights based on official odds
-        const weights = [14, 14, 14, 12.5, 10.5, 9, 7.5, 6, 4.5, 3, 2, 1.5, 1, 0.5];
-
-        // Simulate lottery for top 4 picks
-        const topPicks = [];
-        while (topPicks.length < 4) {
-            const teamIndex = weightedRandom(weights);
-            const selectedTeam = lotteryTeams.splice(teamIndex, 1)[0];
-            topPicks.push(selectedTeam);
-            weights.splice(teamIndex, 1);
-        }
+        const teamCombinations = assignCombinations(teams);
+        const topPicks = drawCombination(teamCombinations);
 
         // Assign picks 5-14 based on inverse order
-        const remainingLotteryTeams = [...lotteryTeams];
+        const remainingLotteryTeams = teams.filter(t => !topPicks.includes(t));
         remainingLotteryTeams.sort((a, b) => parseInt(a.record.split('-')[0]) - parseInt(b.record.split('-')[0]));
 
         // Combine top picks and remaining lottery teams
-        const draftOrder = topPicks.concat(remainingLotteryTeams, otherTeams);
+        const draftOrder = topPicks.concat(remainingLotteryTeams);
 
         displayTeams(draftOrder); // Display the draft order
         localStorage.setItem('draftOrder', JSON.stringify(draftOrder));
