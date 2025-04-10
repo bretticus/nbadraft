@@ -174,3 +174,5 @@ function enterManageMode() {
 
 loadTeamRecords();
 displayTeams(teams);
+
+document.getElementById('manage-mode').addEventListener('click', enterManageMode);
